@@ -573,11 +573,42 @@
       const email = document.getElementById('zelleEmail').value.trim();
       document.getElementById('revealQrBtn').classList.toggle('active', name.length > 1 && email.includes('@'));
     }
-    function revealZelleQR() {
-      const name = document.getElementById('zelleName').value.trim();
+
+    async function revealZelleQR() {
+      const name    = document.getElementById('zelleName').value.trim();
+      const email   = document.getElementById('zelleEmail').value.trim();
+      const plan    = planType === 'single' ? 'Single Classes ($25 each)' : '10-Class Pack ($200 flat)';
+      const total   = getTotal();
+      const count   = selectedDates.length;
+      const sorted  = [...selectedDates].sort((a,b) => a-b);
+      const opts    = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
+      const dateStr = count > 0
+        ? sorted.map(d => d.toLocaleDateString('en-US', opts)).join('\n')
+        : 'No dates selected yet';
+
+      // Show QR immediately — don't wait for email
       document.getElementById('zelleGreeting').textContent = `Hi ${name} — scan below to complete your payment.`;
       document.getElementById('zelleForm').style.display = 'none';
       document.getElementById('zelleBox').classList.add('shown');
+
+      // Submit to Formspree in background
+      try {
+        await fetch('https://formspree.io/f/mkoaopgr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({
+            name:    name,
+            email:   email,
+            plan:    plan,
+            total:   `$${total}`,
+            classes: `${count} class${count !== 1 ? 'es' : ''}`,
+            dates:   dateStr,
+            message: `Knights of Naperville — Zelle Enrollment Pending\n\nName: ${name}\nEmail: ${email}\nPlan: ${plan}\nClasses: ${count}\nTotal: $${total}\n\nSelected Dates:\n${dateStr}\n\nPayment method: Zelle — awaiting confirmation.`
+          })
+        });
+      } catch(e) {
+        console.warn('Formspree submission failed:', e);
+      }
     }
 
     // ── Init ──
